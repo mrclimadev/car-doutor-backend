@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtualenv
+.venv/
+venv/
+env/
+ENV/
+
+# Env secrets
+.env
+.env.*
+!.env.example
+
+# Data — nunca commitar os parquets no repo do backend
+# Os dados ficam no S3, lidos via DATA_SOURCE=s3
+*.parquet
+*.geoparquet
+*.gpkg
+*.shp
+*.dbf
+*.shx
+*.prj
+*.fix
+*.geojson
+*.tif
+*.tiff
+raw/
+processed/
+data-pipeline/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/

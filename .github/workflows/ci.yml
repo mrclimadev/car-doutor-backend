@@ -1,0 +1,97 @@
+name: Backend CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ── Testes ──────────────────────────────────────────────────────────────────
+  test:
+    name: Lint & Testes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt ruff pytest
+
+      - name: Lint (ruff)
+        run: ruff check app/
+
+      - name: Testes
+        run: pytest tests/ -v --tb=short
+        # Variáveis mínimas para testes unitários (sem S3 real)
+        env:
+          DATA_SOURCE: local
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        # Testes passam mesmo sem DATA_SOURCE=s3 porque usam mocks/fixtures
+
+  # ── Build e push da imagem Docker ───────────────────────────────────────────
+  build:
+    name: Build Docker
+    runs-on: ubuntu-latest
+    needs: test
+    # Só faz push na main (PRs apenas constroem, não publicam)
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Deploy (Railway / Fly.io / ECS — ajuste conforme infraestrutura) ────────
+  deploy:
+    name: Deploy Produção
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      # Exemplo Railway — substitua pelo seu provider
+      - name: Deploy Railway
+        run: |
+          npm install -g @railway/cli
+          railway up --service car-doutor-backend
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      # Alternativa Fly.io (descomente se usar Fly):
+      # - uses: superfly/flyctl-actions/setup-flyctl@master
+      # - run: flyctl deploy --remote-only
+      #   env:
+      #     FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
