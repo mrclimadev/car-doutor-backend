@@ -96,6 +96,21 @@ class SoloResult(BaseModel):
     estoque_carbono_tC_ha: float | None = None
 
 
+class LandUseResult(BaseModel):
+    """Análise das camadas SICAR adicionais (RL poligonal, uso restrito, etc.)."""
+    rl_polygon_ha: float = 0.0
+    rl_polygon_encontrado: bool = False
+    area_consolidada_ha: float = 0.0
+    uso_restrito_ha: float = 0.0
+    uso_restrito_tipos: list[str] = []
+    area_pousio_ha: float = 0.0
+    servidao_ha: float = 0.0
+    servidao_tipos: list[str] = []
+    pra_elegivel_ha: float = 0.0
+    status: StatusCode = StatusCode.OK
+    pendencias: list[Pendencia] = []
+
+
 class CadastroPerfil(BaseModel):
     """Dados do perfil do imóvel extraídos do SICAR."""
     ind_status: str | None = None         # AT/SU/CA/PE
@@ -119,6 +134,7 @@ class LaudoResult(BaseModel):
     restricoes: RestricaoResult
     solo: SoloResult = SoloResult()
     cadastro: CadastroPerfil = CadastroPerfil()
+    land_use: LandUseResult = LandUseResult()
     resumo_simples: str
     resumo_tecnico: str
     resumo_gerado_por: str = "template"  # "ia" | "template"

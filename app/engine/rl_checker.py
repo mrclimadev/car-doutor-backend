@@ -48,7 +48,12 @@ def _biome_for_centroid(centroid: Point) -> str:
         return "Cerrado (Amazônia Legal)"
 
 
-def check_rl(property_geom, property_area_ha: float, car_code: str | None = None) -> RlResult:
+def check_rl(
+    property_geom,
+    property_area_ha: float,
+    car_code: str | None = None,
+    mod_fiscal: float | None = None,
+) -> RlResult:
     """
     property_geom: shapely geometry do imóvel (WGS84)
     property_area_ha: área do imóvel em hectares
@@ -84,7 +89,47 @@ def check_rl(property_geom, property_area_ha: float, car_code: str | None = None
     pct_declarado = declared_ha / property_area_ha if property_area_ha > 0 else 0.0
     deficit_ha = max(0.0, area_minima_ha - declared_ha)
 
-    if deficit_ha > 0.5:
+    # Art. 67 — imóveis com até 4 módulos fiscais têm regime especial:
+    # a vegetação nativa existente na data do cadastro é a RL, sem % mínimo.
+    art67 = mod_fiscal is not None and mod_fiscal <= 4
+
+    if art67:
+        if declared_ha > 0:
+            # Tem vegetação → conforme pelo Art. 67 (mantém o que tem)
+            status = StatusCode.OK
+            pendencias.append(Pendencia(
+                codigo="RL_ART67_PEQUENA_PROPRIEDADE",
+                status=StatusCode.OK,
+                titulo="Reserva Legal — Art. 67 (Pequena Propriedade)",
+                detalhe=(
+                    f"Imóvel com {mod_fiscal:.2f} módulo(s) fiscal(is) — aplica-se o Art. 67 "
+                    f"da Lei 12.651/2012. Vegetação nativa existente ({declared_ha:.1f} ha) "
+                    f"é computada como RL independente do percentual mínimo do bioma."
+                ),
+                orientacao=(
+                    "Sua propriedade é pequena (até 4 módulos fiscais). Pela lei, você precisa "
+                    "apenas manter a vegetação nativa que já existe — não há obrigação de atingir "
+                    f"os {pct_minimo*100:.0f}% normalmente exigidos para o bioma {bioma}."
+                ),
+            ))
+        else:
+            # Sem nenhuma vegetação declarada — atenção mesmo com Art. 67
+            status = StatusCode.ATENCAO
+            pendencias.append(Pendencia(
+                codigo="RL_ART67_SEM_VEGETACAO",
+                status=StatusCode.ATENCAO,
+                titulo="Nenhuma vegetação nativa declarada (Art. 67)",
+                detalhe=(
+                    f"Imóvel com {mod_fiscal:.2f} módulo(s) fiscal(is). "
+                    "O Art. 67 exige manutenção da vegetação existente, mas nenhuma foi declarada."
+                ),
+                orientacao=(
+                    "Mesmo sendo uma pequena propriedade, é necessário declarar no CAR toda a "
+                    "vegetação nativa presente. Se não houver vegetação, verifique se o imóvel "
+                    "realmente está em conformidade com o órgão ambiental estadual (SEMA-MT)."
+                ),
+            ))
+    elif deficit_ha > 0.5:
         status = StatusCode.CRITICO
         pendencias.append(Pendencia(
             codigo="RL_DEFICIT",

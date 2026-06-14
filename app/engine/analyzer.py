@@ -16,6 +16,7 @@ from ..models import AnalyseRequest, CadastroPerfil, LaudoResult, SoloResult, St
 from .app_calculator import calculate_app
 from .deforest_checker import check_deforestation
 from .geom_utils import gdf_to_metric, to_metric
+from .land_use_checker import check_land_use
 from .llm import generate_summaries
 from .restriction_checker import check_restrictions
 from .rl_checker import check_rl
@@ -85,12 +86,22 @@ def analyze(request: AnalyseRequest) -> LaudoResult:
     else:
         declared_app_geom = None
 
+    # ── 2b. Extrair mod_fiscal (necessário para Art. 61-A APP e Art. 67 RL) ──
+    mod_fiscal: float | None = None
+    if rows is not None and not rows.empty:
+        r0 = rows.iloc[0]
+        if "mod_fiscal" in r0.index and r0["mod_fiscal"] is not None:
+            try:
+                mod_fiscal = float(r0["mod_fiscal"])
+            except (ValueError, TypeError):
+                pass
+
     # ── 3. Rodar todos os checks ───────────────────────────────────────────────
     log.info("Calculando APP ...")
-    app_result = calculate_app(property_geom, declared_app_geom)
+    app_result = calculate_app(property_geom, declared_app_geom, mod_fiscal=mod_fiscal)
 
     log.info("Verificando RL ...")
-    rl_result = check_rl(property_geom, area_ha, car_code=car_code)
+    rl_result = check_rl(property_geom, area_ha, car_code=car_code, mod_fiscal=mod_fiscal)
 
     log.info("Consultando PRODES/DETER ...")
     deforest_result = check_deforestation(property_geom)
@@ -101,6 +112,15 @@ def analyze(request: AnalyseRequest) -> LaudoResult:
     log.info("Analisando solo ...")
     solo_raw = analyze_soil(property_geom)
     solo_result = SoloResult(**solo_raw)
+
+    log.info("Analisando uso do solo (camadas SICAR adicionais) ...")
+    land_use_result = check_land_use(
+        property_geom,
+        area_ha,
+        declared_rl_ha=rl_result.area_declarada_ha,
+        app_deficit_ha=app_result.deficit_ha,
+        car_code=car_code,
+    )
 
     # ── 3b. Perfil cadastral do imóvel ────────────────────────────────────────
     cadastro_result = CadastroPerfil()
@@ -131,6 +151,7 @@ def analyze(request: AnalyseRequest) -> LaudoResult:
         rl_result.status,
         deforest_result.status,
         restrict_result.status,
+        land_use_result.status,
     ]
     if StatusCode.CRITICO in all_statuses:
         status_geral = StatusCode.CRITICO
@@ -144,6 +165,7 @@ def analyze(request: AnalyseRequest) -> LaudoResult:
         + rl_result.pendencias
         + deforest_result.pendencias
         + restrict_result.pendencias
+        + land_use_result.pendencias
     )
     criticas = sum(1 for p in all_pendencias if p.status == StatusCode.CRITICO)
 
@@ -163,6 +185,7 @@ def analyze(request: AnalyseRequest) -> LaudoResult:
         restricoes=restrict_result,
         solo=solo_result,
         cadastro=cadastro_result,
+        land_use=land_use_result,
         resumo_simples="",
         resumo_tecnico="",
         total_pendencias=len(all_pendencias),
