@@ -53,6 +53,7 @@ def check_rl(
     property_area_ha: float,
     car_code: str | None = None,
     mod_fiscal: float | None = None,
+    uf: str = "MT",
 ) -> RlResult:
     """
     property_geom: shapely geometry do imóvel (WGS84)
@@ -69,7 +70,7 @@ def check_rl(
     area_minima_ha = property_area_ha * pct_minimo
 
     # Carregar vegetação nativa declarada no SICAR
-    veg = load_by_polygon("sicar_vegetacao_nativa", property_geom)
+    veg = load_by_polygon("sicar_vegetacao_nativa", property_geom, uf)
 
     # Filtrar pelo cod_imovel quando disponível — impede que RL de vizinhos
     # seja contabilizada como deste imóvel (falso-positivo de conformidade).

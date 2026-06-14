@@ -11,6 +11,7 @@ from ..data.loader import (
     find_property_by_car,
     geometry_from_geojson,
     load_by_polygon,
+    uf_from_car_code,
 )
 from ..models import AnalyseRequest, CadastroPerfil, LaudoResult, SoloResult, StatusCode
 from .app_calculator import calculate_app
@@ -45,6 +46,7 @@ def analyze(request: AnalyseRequest) -> LaudoResult:
     car_code = request.car_code
     municipio = None
     rows = None
+    uf = uf_from_car_code(car_code) if car_code else "MT"
 
     if request.car_code:
         rows = find_property_by_car(request.car_code)
@@ -70,7 +72,7 @@ def analyze(request: AnalyseRequest) -> LaudoResult:
     area_ha = _property_area_ha(property_geom)
 
     # ── 2. Carregar APP declarada ──────────────────────────────────────────────
-    apps_gdf = load_by_polygon("sicar_apps", property_geom)
+    apps_gdf = load_by_polygon("sicar_apps", property_geom, uf)
     if not apps_gdf.empty:
         apps_metric = gdf_to_metric(apps_gdf)
         prop_metric  = to_metric(property_geom)
@@ -98,10 +100,10 @@ def analyze(request: AnalyseRequest) -> LaudoResult:
 
     # ── 3. Rodar todos os checks ───────────────────────────────────────────────
     log.info("Calculando APP ...")
-    app_result = calculate_app(property_geom, declared_app_geom, mod_fiscal=mod_fiscal)
+    app_result = calculate_app(property_geom, declared_app_geom, mod_fiscal=mod_fiscal, uf=uf)
 
     log.info("Verificando RL ...")
-    rl_result = check_rl(property_geom, area_ha, car_code=car_code, mod_fiscal=mod_fiscal)
+    rl_result = check_rl(property_geom, area_ha, car_code=car_code, mod_fiscal=mod_fiscal, uf=uf)
 
     log.info("Consultando PRODES/DETER ...")
     deforest_result = check_deforestation(property_geom)
@@ -120,6 +122,7 @@ def analyze(request: AnalyseRequest) -> LaudoResult:
         declared_rl_ha=rl_result.area_declarada_ha,
         app_deficit_ha=app_result.deficit_ha,
         car_code=car_code,
+        uf=uf,
     )
 
     # ── 3b. Perfil cadastral do imóvel ────────────────────────────────────────

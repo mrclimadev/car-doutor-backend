@@ -69,14 +69,14 @@ def _get_width(row) -> float:
     return 0.0  # desconhecida → usar menor faixa
 
 
-def calculate_app(property_geom, declared_app_geom=None, mod_fiscal: float | None = None) -> AppResult:
+def calculate_app(property_geom, declared_app_geom=None, mod_fiscal: float | None = None, uf: str = "MT") -> AppResult:
     """
     property_geom: shapely geometry do imóvel (WGS84)
     declared_app_geom: shapely geometry da APP declarada no SICAR (pode ser None)
     mod_fiscal: módulos fiscais do imóvel — ativa Art. 61-A quando fornecido
     """
     # ── Hidrografia declarada no SICAR dentro do imóvel ──────────────────────
-    hidro = load_by_polygon("sicar_hidrografia", property_geom)
+    hidro = load_by_polygon("sicar_hidrografia", property_geom, uf)
 
     pendencias: list[Pendencia] = []
 

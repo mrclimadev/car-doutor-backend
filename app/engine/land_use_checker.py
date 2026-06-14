@@ -46,9 +46,9 @@ def _distinct_types(gdf, *cols) -> list[str]:
     return sorted(t for t in tipos if t and t.lower() not in {"nan", "none", ""})
 
 
-def _safe_load(layer: str, geom):
+def _safe_load(layer: str, geom, uf: str = "MT"):
     try:
-        return load_by_polygon(layer, geom)
+        return load_by_polygon(layer, geom, uf)
     except Exception as exc:
         log.warning("Camada %s indisponível: %s", layer, exc)
         import geopandas as gpd
@@ -61,12 +61,13 @@ def check_land_use(
     declared_rl_ha: float = 0.0,
     app_deficit_ha: float = 0.0,
     car_code: str | None = None,
+    uf: str = "MT",
 ) -> LandUseResult:
     pendencias: list[Pendencia] = []
     prop_metric = to_metric(property_geom)
 
     # ── 1. Reserva Legal poligonal ─────────────────────────────────────────────
-    rl_gdf = _safe_load("sicar_reserva_legal", property_geom)
+    rl_gdf = _safe_load("sicar_reserva_legal", property_geom, uf)
     rl_gdf = _own_filter(rl_gdf, car_code)
     rl_polygon_ha = _intersect_ha(rl_gdf, prop_metric)
     rl_polygon_encontrado = rl_polygon_ha > 0.1
@@ -92,7 +93,7 @@ def check_land_use(
             ))
 
     # ── 2. Área Consolidada → elegibilidade ao PRA ────────────────────────────
-    consol_gdf = _safe_load("sicar_area_consolidada", property_geom)
+    consol_gdf = _safe_load("sicar_area_consolidada", property_geom, uf)
     consol_gdf = _own_filter(consol_gdf, car_code)
     area_consolidada_ha = _intersect_ha(consol_gdf, prop_metric)
 
@@ -122,7 +123,7 @@ def check_land_use(
         ))
 
     # ── 3. Uso Restrito — várzeas, veredas, manguezais ───────────────────────
-    ur_gdf = _safe_load("sicar_uso_restrito", property_geom)
+    ur_gdf = _safe_load("sicar_uso_restrito", property_geom, uf)
     ur_gdf = _own_filter(ur_gdf, car_code)
     uso_restrito_ha = _intersect_ha(ur_gdf, prop_metric)
     uso_restrito_tipos = _distinct_types(
@@ -149,7 +150,7 @@ def check_land_use(
         ))
 
     # ── 4. Área de Pousio ─────────────────────────────────────────────────────
-    pousio_gdf = _safe_load("sicar_area_pousio", property_geom)
+    pousio_gdf = _safe_load("sicar_area_pousio", property_geom, uf)
     pousio_gdf = _own_filter(pousio_gdf, car_code)
     area_pousio_ha = _intersect_ha(pousio_gdf, prop_metric)
 
@@ -172,7 +173,7 @@ def check_land_use(
         ))
 
     # ── 5. Servidão Administrativa ─────────────────────────────────────────────
-    serv_gdf = _safe_load("sicar_servidao_administrativa", property_geom)
+    serv_gdf = _safe_load("sicar_servidao_administrativa", property_geom, uf)
     serv_gdf = _own_filter(serv_gdf, car_code)
     servidao_ha = _intersect_ha(serv_gdf, prop_metric)
     servidao_tipos = _distinct_types(
