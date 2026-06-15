@@ -20,7 +20,7 @@ _LOCAL_BASE   = (
     Path(__file__).resolve().parent.parent.parent.parent
     / "data-pipeline" / "processed"
 )
-_S3_BUCKET    = os.getenv("S3_BUCKET", "car-doutor-geodata")
+_S3_BUCKET    = os.getenv("S3_BUCKET", "green-car-geodata")
 _DATA_SOURCE  = os.getenv("DATA_SOURCE", "local")   # "local" | "s3"
 
 # Mapeamento prefixo CAR → UF

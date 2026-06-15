@@ -1,5 +1,5 @@
 """
-CAR Doutor — API principal
+Green Car — API principal
 FastAPI + endpoint POST /analyze
 """
 
@@ -35,7 +35,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="CAR Doutor",
+    title="Green Car",
     description=(
         "Analisa inconsistências no Cadastro Ambiental Rural (CAR) "
         "cruzando dados do SICAR com bases abertas. "
@@ -57,7 +57,7 @@ def health():
     key = _read_env_var("RESEND_API_KEY")
     return {
         "status": "ok",
-        "service": "car-doutor",
+        "service": "green-car",
         "resend_key": f"{key[:8]}..." if key else "NAO CONFIGURADO",
         "env_path": str(Path(__file__).resolve().parent.parent / ".env"),
         "env_exists": (Path(__file__).resolve().parent.parent / ".env").exists(),
@@ -203,10 +203,10 @@ def locate_property(car_code: str):
 
 
 @app.get("/stats")
-def get_stats():
+def get_stats(uf: str = Query("MT", description="UF do estado (ex: MT, DF)")):
     """Estatísticas agregadas do cadastro SICAR (sicar_area_imovel)."""
     from .data.loader import _load_full
-    gdf = _load_full("sicar_area_imovel")
+    gdf = _load_full("sicar_area_imovel", uf.upper())
 
     total = int(len(gdf))
 
@@ -245,10 +245,11 @@ def stats_map(
     ind_status_filter: str = Query(None, alias="ind_status", description="Filtrar por ind_status"),
     municipio: str = Query(None, description="Filtrar por município (nome exato)"),
     limit: int = Query(500, ge=1, le=2000, description="Máximo de features retornadas"),
+    uf: str = Query("MT", description="UF do estado (ex: MT, DF)"),
 ):
     """Retorna GeoJSON com centroides das propriedades filtradas (para visualização no mapa)."""
     from .data.loader import _load_full
-    gdf = _load_full("sicar_area_imovel").copy()
+    gdf = _load_full("sicar_area_imovel", uf.upper()).copy()
 
     if condic and "des_condic" in gdf.columns:
         gdf = gdf[gdf["des_condic"].astype(str).str.upper() == condic.upper()]
@@ -400,12 +401,15 @@ def property_layers(
 
 
 @app.get("/stats/municipio/{municipio}")
-def stats_municipio(municipio: str):
+def stats_municipio(
+    municipio: str,
+    uf: str = Query("MT", description="UF do estado (ex: MT, DF)"),
+):
     """
     Estatísticas de conformidade para um município — usado para comparação com vizinhança.
     """
     from .data.loader import _load_full
-    gdf = _load_full("sicar_area_imovel").copy()
+    gdf = _load_full("sicar_area_imovel", uf.upper()).copy()
 
     # Filtrar por município
     for col in ["municipio", "nm_municip", "municipio_", "nm_mun"]:
@@ -534,7 +538,7 @@ def _build_email_html(laudo: dict) -> str:
 
    <!-- Header -->
    <tr><td style="background:#0a2e0a;border-radius:12px 12px 0 0;padding:28px 32px;">
-     <div style="color:#4caf50;font-size:22px;font-weight:bold;letter-spacing:-0.5px;">🌿 CAR Doutor</div>
+     <div style="color:#4caf50;font-size:22px;font-weight:bold;letter-spacing:-0.5px;">🌿 Green Car</div>
      <div style="color:#81c784;font-size:12px;margin-top:4px;">Análise Automática do Cadastro Ambiental Rural</div>
    </td></tr>
 
@@ -610,7 +614,7 @@ def _build_email_html(laudo: dict) -> str:
    <!-- Footer -->
    <tr><td style="background:#0a2e0a;border-radius:0 0 12px 12px;padding:18px 32px;">
      <div style="font-size:10px;color:#81c784;line-height:1.6;">
-       CAR Doutor — Análise Automática do Cadastro Ambiental Rural — ENAP Hackathon 2026<br>
+       Green Car — Análise Automática do Cadastro Ambiental Rural — ENAP Hackathon 2026<br>
        Este laudo é gerado automaticamente e não substitui vistoria de campo nem laudo técnico assinado por profissional habilitado.
      </div>
    </td></tr>
@@ -653,7 +657,7 @@ def _read_env_var(key: str) -> str:
 def send_report(req: SendReportRequest):
     """Envia laudo de conformidade por email via Resend API."""
     api_key  = _read_env_var("RESEND_API_KEY")
-    from_addr = _read_env_var("RESEND_FROM") or "CAR Doutor <onboarding@resend.dev>"
+    from_addr = _read_env_var("RESEND_FROM") or "Green Car <onboarding@resend.dev>"
 
     log.info("send_report: api_key presente=%s from=%s", bool(api_key), from_addr)
 
@@ -677,7 +681,7 @@ def send_report(req: SendReportRequest):
             json={
                 "from": from_addr,
                 "to": [req.email],
-                "subject": f"[CAR Doutor] Laudo {status_label} — {car_code} · {municipio}",
+                "subject": f"[Green Car] Laudo {status_label} — {car_code} · {municipio}",
                 "html": html_body,
             },
             timeout=15,

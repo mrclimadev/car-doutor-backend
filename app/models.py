@@ -1,5 +1,5 @@
 """
-Modelos Pydantic — request/response da API CAR Doutor
+Modelos Pydantic — request/response da API Green Car
 """
 
 from enum import Enum

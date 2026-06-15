@@ -28,7 +28,7 @@ def _build_context(laudo: LaudoResult) -> str:
     ) or "  Nenhuma pendência encontrada."
 
     return f"""
-Imóvel rural — CAR Doutor
+Imóvel rural — Green Car
 CAR: {laudo.car_code or 'não informado'}
 Área: {laudo.area_imovel_ha:.1f} ha
 Município: {laudo.municipio or 'MT'}
@@ -46,7 +46,7 @@ Pendências detalhadas:
 
 
 _PROMPT_SIMPLES = """
-Você é o CAR Doutor, um assistente que ajuda produtores rurais do Brasil a entender o Cadastro Ambiental Rural (CAR).
+Você é o Green Car, um assistente que ajuda produtores rurais do Brasil a entender o Cadastro Ambiental Rural (CAR).
 Seu papel é explicar, com linguagem simples e respeitosa, o resultado da análise do imóvel.
 Use linguagem que um produtor rural com ensino fundamental entenderia.
 Evite termos técnicos. Quando necessário, explique o que significa (ex: "APP — a faixa de mata que deve ficar ao redor dos rios").
